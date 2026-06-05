@@ -2,7 +2,7 @@
 
 on:
   schedule:
-    - cron: '0 17 * * 0'
+    - cron: "0 17 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -14,66 +14,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate weekly status report
+      - name: Generate weekly report
         run: |
-          END_DATE=$(date -u +"%Y-%m-%d")
-          START_DATE=$(date -u -d "1 week ago" +"%Y-%m-%d")
+          START=$(date -u -d "1 week ago" +"%Y-%m-%d")
+          END=$(date -u +"%Y-%m-%d")
+          LOG=$(git log --since="${START}" --until="${END}" --pretty=format:"- %h %s (%an)" 2>/dev/null)
+          MODIFIED=$(git log --since="${START}" --pretty=format: --name-only 2>/dev/null | sort -u | head -20)
+          COUNT=$(git log --since="${START}" --oneline 2>/dev/null | wc -l | tr -d " ")
 
-          LOG=$(git log --since="${START_DATE}" --until="${END_DATE}" \
-            --pretty=format:"  %h %s (%an)" 2>/dev/null)
-
-          MODIFIED=$(git log --since="${START_DATE}" --pretty=format: --name-only 2>/dev/null | sort -u)
-          COMMIT_COUNT=$(echo "$LOG" | grep -c "^  ")
-
-          REPORT="Weekly Status Update\n\n"
-          REPORT+="Period: ${START_DATE} ~ ${END_DATE}\n\n"
-          REPORT+="Commits this week: ${COMMIT_COUNT}\n\n"
-
-          if [ -n "$LOG" ]; then
-            REPORT+="Work Completed:\n${LOG}\n\n"
+          echo "## Weekly Status Update" > weekly-status.md
+          echo "" >> weekly-status.md
+          echo "**Period:** ${START} ~ ${END}" >> weekly-status.md
+          echo "" >> weekly-status.md
+          echo "**Commits:** ${COUNT}" >> weekly-status.md
+          echo "" >> weekly-status.md
+          echo "### Work Completed" >> weekly-status.md
+          echo "" >> weekly-status.md
+          if [ -n "${LOG}" ]; then
+            echo "${LOG}" >> weekly-status.md
           else
-            REPORT+="Work Completed:\n- (No commits this week)\n\n"
+            echo "- (No commits this week)" >> weekly-status.md
           fi
-
-          REPORT+="Files Changed:\n"
-          if [ -n "$MODIFIED" ]; then
-            REPORT+="$(echo "$MODIFIED" | head -20 | sed 's/^/  - /')\n\n"
+          echo "" >> weekly-status.md
+          echo "### Files Changed" >> weekly-status.md
+          echo "" >> weekly-status.md
+          if [ -n "${MODIFIED}" ]; then
+            echo "${MODIFIED}" | sed "s/^/- /" >> weekly-status.md
           else
-            REPORT+="- (none)\n\n"
+            echo "- (none)" >> weekly-status.md
           fi
+          echo "" >> weekly-status.md
+          echo "### Next Steps" >> weekly-status.md
+          echo "" >> weekly-status.md
+          echo "- Continue current work" >> weekly-status.md
+          echo "- Review open issues / PRs" >> weekly-status.md
+          echo "- Plan next week priorities" >> weekly-status.md
 
-          REPORT+="Next Steps:\n"
-          REPORT+="  - Continue current work\n"
-          REPORT+="  - Review open issues / PRs\n"
-          REPORT+="  - Plan next week priorities\n"
+          cat weekly-status.md
 
-          printf "$REPORT"
-
-          cat > weekly-status.md << EOF
-## Weekly Status Update
-
-**Period:** ${START_DATE} ~ ${END_DATE}
-
-**Commits this week:** ${COMMIT_COUNT}
-
-### Work Completed
-$(if [ -n "$LOG" ]; then echo "$LOG"; else echo "- (No commits this week)"; fi)
-
-### Files Changed
-$(if [ -n "$MODIFIED" ]; then echo "$MODIFIED" | head -20 | sed 's/^/  - /'; else echo "- (none)"; fi)
-
-### Next Steps
-- Continue current work
-- Review open issues / PRs
-- Plan next week priorities
-EOF
-
-      - name: Commit and push report
+      - name: Commit and push
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
           git add weekly-status.md
-          git commit -m "📊 Weekly status: $(date +%Y-%m-%d)" --allow-empty || true
+          git commit -m "📊 weekly report $(date +%%Y-%%m-%%d)" || true
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
