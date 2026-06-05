@@ -2,21 +2,19 @@
 
 on:
   schedule:
-    - cron: '0 9 * * 0'  # 每周日 09:00 UTC（北京时间 17:00）
-  workflow_dispatch:      # 手动触发也支持
+    - cron: '0 17 * * 0'
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   weekly-review:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Generate weekly status report
-        id: report
         run: |
           END_DATE=$(date -u +"%Y-%m-%d")
           START_DATE=$(date -u -d "1 week ago" +"%Y-%m-%d")
@@ -25,87 +23,57 @@ jobs:
             --pretty=format:"  %h %s (%an)" 2>/dev/null)
 
           MODIFIED=$(git log --since="${START_DATE}" --pretty=format: --name-only 2>/dev/null | sort -u)
-          COMMIT_COUNT=$(echo "$LOG" | grep -c "^  " || echo 0)
+          COMMIT_COUNT=$(echo "$LOG" | grep -c "^  ")
 
-          echo "=== WEEKLY STATUS UPDATE DRAFT ==="
-          echo ""
-          echo "**Period:** ${START_DATE} ~ ${END_DATE}"
-          echo ""
-          echo "**Summary:**"
-          echo "- ${COMMIT_COUNT} commit(s) this week"
-          echo ""
+          REPORT="Weekly Status Update\n\n"
+          REPORT+="Period: ${START_DATE} ~ ${END_DATE}\n\n"
+          REPORT+="Commits this week: ${COMMIT_COUNT}\n\n"
 
           if [ -n "$LOG" ]; then
-            echo "**What I worked on:**"
-            echo "$LOG"
+            REPORT+="Work Completed:\n${LOG}\n\n"
           else
-            echo "**What I worked on:**"
-            echo "(No commits this week)"
+            REPORT+="Work Completed:\n- (No commits this week)\n\n"
           fi
-          echo ""
 
+          REPORT+="Files Changed:\n"
           if [ -n "$MODIFIED" ]; then
-            echo "**Files changed:**"
-            echo "$MODIFIED" | head -20 | sed 's/^/  - /'
+            REPORT+="$(echo "$MODIFIED" | head -20 | sed 's/^/  - /')\n\n"
           else
-            echo "**Files changed:** (none)"
+            REPORT+="- (none)\n\n"
           fi
-          echo ""
 
-          echo "**Next steps:**"
-          echo "  - Continue current work"
-          echo "  - Review open issues / PRs"
-          echo "  - Plan next week priorities"
-          echo ""
+          REPORT+="Next Steps:\n"
+          REPORT+="  - Continue current work\n"
+          REPORT+="  - Review open issues / PRs\n"
+          REPORT+="  - Plan next week priorities\n"
 
-          # Also save markdown version
-          cat > weekly-status.md << 'MDEOF'
-# Weekly Status Update
+          printf "$REPORT"
 
-## Summary
-MDEOF
+          cat > weekly-status.md << EOF
+## Weekly Status Update
 
-          echo "- Period: ${START_DATE} ~ ${END_DATE}" >> weekly-status.md
-          echo "- Commits: ${COMMIT_COUNT}" >> weekly-status.md
-          echo "" >> weekly-status.md
-          echo "## Work Completed" >> weekly-status.md
-          if [ -n "$LOG" ]; then
-            echo "$LOG" >> weekly-status.md
-          else
-            echo "- (No commits)" >> weekly-status.md
-          fi
-          echo "" >> weekly-status.md
-          echo "## Files Changed" >> weekly-status.md
-          if [ -n "$MODIFIED" ]; then
-            echo "$MODIFIED" | head -20 | sed 's/^/  - /' >> weekly-status.md
-          else
-            echo "- (none)" >> weekly-status.md
-          fi
-          echo "" >> weekly-status.md
-          echo "## Next Steps" >> weekly-status.md
-          echo "- Continue current work" >> weekly-status.md
-          echo "- Review open issues / PRs" >> weekly-status.md
-          echo "- Plan next week priorities" >> weekly-status.md
+**Period:** ${START_DATE} ~ ${END_DATE}
 
-          echo "::set-output name=status::Report generated: weekly-status.md"
+**Commits this week:** ${COMMIT_COUNT}
 
-      - name: Upload report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: weekly-report
-          path: weekly-status.md
+### Work Completed
+$(if [ -n "$LOG" ]; then echo "$LOG"; else echo "- (No commits this week)"; fi)
+
+### Files Changed
+$(if [ -n "$MODIFIED" ]; then echo "$MODIFIED" | head -20 | sed 's/^/  - /'; else echo "- (none)"; fi)
+
+### Next Steps
+- Continue current work
+- Review open issues / PRs
+- Plan next week priorities
+EOF
 
       - name: Commit and push report
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add weekly-status.md
-          git commit -m "📊 Weekly status: $(date +%Y-%m-%d)" || echo "No changes to commit"
+          git commit -m "📊 Weekly status: $(date +%Y-%m-%d)" --allow-empty || true
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Notify on failure
-        if: failure()
-        run: echo "Weekly review workflow failed. Please check the Actions tab."
-
