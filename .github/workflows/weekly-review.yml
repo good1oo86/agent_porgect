@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Generate weekly report
+        id: report
         run: |
           START=$(date -u -d "1 week ago" +"%Y-%m-%d")
           END=$(date -u +"%Y-%m-%d")
@@ -50,9 +51,32 @@ jobs:
           echo "- Review open issues / PRs" >> weekly-status.md
           echo "- Plan next week priorities" >> weekly-status.md
 
+          BODY="Weekly Status Update"
+          BODY+=$'\n'
+          BODY+="Period: ${START} ~ ${END}"
+          BODY+=$'\n'
+          BODY+="Commits: ${COUNT}"
+          BODY+=$'\n'
+          BODY+="### Work Completed"
+          BODY+=$'\n'
+          BODY+=$(echo "$LOG" || echo "- None")
+          BODY+=$'\n'
+          BODY+="### Files Changed"
+          BODY+=$'\n'
+          BODY+=$(echo "$MODIFIED" | sed "s/^/- /" || echo "- None")
+          BODY+=$'\n'
+          BODY+="### Next Steps"
+          BODY+=$'\n'
+          BODY+="- Continue current work"
+          BODY+=$'\n'
+          BODY+="- Review open issues / PRs"
+          BODY+=$'\n'
+          BODY+="- Plan next week priorities"
+          echo "::set-output name=body::${BODY}"
+
           cat weekly-status.md
 
-      - name: Commit and push
+      - name: Commit and push report
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
@@ -61,3 +85,15 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send notification
+        if: success()
+        run: |
+          curl -s "https://api.pushplus.plus/send" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "token": "${{ secrets.PUSH_PLUS_TOKEN }}",
+              "title": "📊 Weekly Work Report",
+              "content": "$(cat weekly-status.md)",
+              "template": "markdown"
+            }'
