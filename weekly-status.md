@@ -6,11 +6,12 @@
 
 ### Work Completed
 
-- 1af9b49 fix: simplify yaml to avoid syntax errors (li)
+- d2be1fe feat: add PushPlus notification (li)
 
 ### Files Changed
 
 - .github/workflows/weekly-review.yml
+- weekly-status.md
 
 ### Next Steps
 
