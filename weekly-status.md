@@ -1,12 +1,12 @@
 ## Weekly Status Update
 
-**Period:** 2026-05-29 ~ 2026-06-05
+**Period:** 2026-05-31 ~ 2026-06-07
 
 **Commits:** 1
 
 ### Work Completed
 
-- d2be1fe feat: add PushPlus notification (li)
+- a867cf3 📊 weekly report %Y-%m-%d (github-actions)
 
 ### Files Changed
 
