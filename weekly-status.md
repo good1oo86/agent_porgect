@@ -1,17 +1,16 @@
 ## Weekly Status Update
 
-**Period:** 2026-05-31 ~ 2026-06-07
+**Period:** 2026-06-07 ~ 2026-06-14
 
-**Commits:** 1
+**Commits:** 0
 
 ### Work Completed
 
-- a867cf3 📊 weekly report %Y-%m-%d (github-actions)
+- (No commits this week)
 
 ### Files Changed
 
-- .github/workflows/weekly-review.yml
-- weekly-status.md
+- (none)
 
 ### Next Steps
 
