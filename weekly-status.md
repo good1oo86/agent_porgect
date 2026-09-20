@@ -1,6 +1,6 @@
 ## Weekly Status Update
 
-**Period:** 2026-09-06 ~ 2026-09-13
+**Period:** 2026-09-13 ~ 2026-09-20
 
 **Commits:** 0
 
